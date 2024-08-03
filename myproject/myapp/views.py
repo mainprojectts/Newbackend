@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from .serializers import  *
 from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 
 # Create your views here.
 
@@ -38,7 +40,7 @@ class NoteListcreate(APIView):
         user=request.user
         Type=request.GET.get("type")
         if Type=="all":
-            data=Note.objects.filter(author=user)
+            data=Note.objects.filter(author=user).order_by("-created_at")
             serializer=self.serializer_class(data,many=True)
         else:
             noteId=request.data['noteId']
@@ -59,5 +61,18 @@ class NoteListcreate(APIView):
             return Response({"message": "Task not found", "status": 0}, status=status.HTTP_404_NOT_FOUND)
 
 
+class LogoutView(APIView):
+    def post(self,request):
+        try:
+            refresh_token=request.data.get("refresh_token")
+            token=RefreshToken(refresh_token)
+            token.blacklist()
+            access_token = token.access_token
+            if access_token:
+                BlacklistedToken.objects.create(token=str(access_token))
 
+            return Response({"message":"Logout successfully"},status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            print(str(e),"--------------")
+            return Response({"message","logout failed"},status=status.HTTP_400_BAD_REQUEST)
         
