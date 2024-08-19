@@ -64,15 +64,24 @@ class NoteListcreate(APIView):
 class LogoutView(APIView):
     def post(self,request):
         try:
-            refresh_token=request.data.get("refresh_token")
+            refresh_token = request.data["refresh_token"]
             token=RefreshToken(refresh_token)
             token.blacklist()
-            access_token = token.access_token
-            if access_token:
-                BlacklistedToken.objects.create(token=str(access_token))
-
-            return Response({"message":"Logout successfully"},status=status.HTTP_205_RESET_CONTENT)
+            return Response({"message":"Blacklisted refresh token successfully"},status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
-            print(str(e),"--------------")
-            return Response({"message","logout failed"},status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message":"Blacklisted failed"},status=status.HTTP_400_BAD_REQUEST)
         
+class ProductView(APIView):
+    serializer_class=ProductSerializer
+    permission_classes=[IsAuthenticated]
+    def post(self,request):
+        serializer=self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data":serializer.data,"message":"Product added successfully","status":1},status=status.HTTP_201_CREATED)
+        return Response({"data":serializer.errors,"message":"Failed","status":0},status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self,request):
+        data=Product.objects.all()
+        serializer=self.serializer_class(data,many=True)
+        return Response({"data":serializer.data,"message":"Product added successfully","status":1},status=status.HTTP_201_CREATED)
