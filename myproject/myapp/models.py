@@ -47,8 +47,15 @@ class Product(models.Model):
     category=models.ForeignKey(Category,on_delete=models.CASCADE,null=True)
     created_at=models.DateTimeField(auto_now_add=True)
     image=models.ImageField(upload_to="images/products/",null=True)
-    rating = models.IntegerField(choices=RATING_CHOICE,null=True)  # New field added
+    rating = models.IntegerField(choices=RATING_CHOICE,null=True)
 
 
     def __str__(self):
         return self.name
+
+class ProductImage(models.Model):
+    images=models.ImageField(upload_to="images/products/",null=True)
+    product=models.ForeignKey(Product,related_name='images',on_delete=models.CASCADE)
+   
+    def __str__(self):
+        return self.product.name

@@ -77,11 +77,31 @@ class ProductView(APIView):
     def post(self,request):
         serializer=self.serializer_class(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            product=serializer.save()
+            productImages = request.FILES.getlist('product_images')
+            print(productImages,'==================')
+            for i in productImages:
+                ProductImage.objects.create(product=product,images=i)
+    
             return Response({"data":serializer.data,"message":"Product added successfully","status":1},status=status.HTTP_201_CREATED)
         return Response({"data":serializer.errors,"message":"Failed","status":0},status=status.HTTP_400_BAD_REQUEST)
     
     def get(self,request):
-        data=Product.objects.all()
-        serializer=self.serializer_class(data,many=True)
-        return Response({"data":serializer.data,"message":"Product added successfully","status":1},status=status.HTTP_201_CREATED)
+        Type=request.GET.get("type")
+        if Type=="all":
+            data=Product.objects.all()
+            serializer=self.serializer_class(data,many=True)
+            return Response({"data":serializer.data,"message":"Success","status":1},status=status.HTTP_201_CREATED)
+        else:              
+            ProId=request.GET.get("id")
+            if ProId:
+                print(ProId,"------------")
+                try:
+                    data = Product.objects.get(id=ProId)
+                    serializer=self.serializer_class(data)
+                    return Response({"data":serializer.data,"message":"Success","status":2},status=status.HTTP_200_OK)
+                except Product.DoesNotExist:
+                        return Response({"message":"Id is invalid","status":0})
+            else:
+                  return Response({"message":"Id is not provided","status":0})
+            
