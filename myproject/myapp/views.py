@@ -104,4 +104,38 @@ class ProductView(APIView):
                         return Response({"message":"Id is invalid","status":0})
             else:
                   return Response({"message":"Id is not provided","status":0})
-            
+
+class CartView(APIView):
+    serializer_class=CartSerializer
+    serializer_class_product=ProductCartSerializer
+    permission_classes=[IsAuthenticated]
+    def post(self,request):
+        serializer=self.serializer_class(data=request.data,many=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data":serializer.data,"message":"Product added to cart successfully","status":1},status=status.HTTP_201_CREATED)
+        return Response({"data":serializer.errors,"message":"Failed to add the product to cart","status":0},status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self,request):
+        user=request.GET.get("user_id")
+        try:    
+                TotalProducts=[]
+                cart_items=Cart.objects.filter(user=user)
+                for item in cart_items:
+                     product_details={
+                          "product_id":item.cart_product.id,
+                          "product_name":item.cart_product.name,
+                          "product_price":item.cart_product.price,
+                          "total_quantity":item.quantity,
+                          "total_price":item.total_price
+                     }
+                     TotalProducts.append(product_details)
+                serializer=self.serializer_class_product(TotalProducts,many=True)
+                return Response({"data":serializer.data,"message":"succes","status":1},status=status.HTTP_200_OK)
+        except Cart.DoesNotExist:
+                return Response({"message":"Cart does not exists","status":0},status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+                     return Response({"error":str(e),"message":"failed","status":0},status=status.HTTP_400_BAD_REQUEST)
+
+    

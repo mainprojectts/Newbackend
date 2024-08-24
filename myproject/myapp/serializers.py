@@ -33,7 +33,16 @@ class ProductSerializer(serializers.ModelSerializer):
         model=Product
         fields=["id","name","price","status","description","brand","category","created_at","image","rating","images"]
   
+class CartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=Cart
+        fields=["id","cart_product","user","created_at","quantity","total_price"]
   
   
-  
+class ProductCartSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    product_name = serializers.CharField()
+    total_quantity = serializers.IntegerField()
+    product_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2)
 
