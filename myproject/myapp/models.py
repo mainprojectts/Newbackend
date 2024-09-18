@@ -48,7 +48,7 @@ class Product(models.Model):
     created_at=models.DateTimeField(auto_now_add=True)
     image=models.ImageField(upload_to="images/products/",null=True)
     rating = models.IntegerField(choices=RATING_CHOICE,null=True)
-
+    stock=models.IntegerField(default=0)
 
     def __str__(self):
         return self.name

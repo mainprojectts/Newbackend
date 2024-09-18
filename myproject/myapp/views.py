@@ -24,6 +24,17 @@ class CreateUserview(APIView):
             return Response({"data":serializer.errors,"message":"Create user failed","status":0},status=status.HTTP_400_BAD_REQUEST)
 
 
+# class GetuserDetailview(APIView):
+#      serializer_class=UserSerializer
+#      permission_classes=[IsAuthenticated]
+#      def get(self,request):
+#           print(request.user.id,'checkuser===================')
+#           Userdata=User.objects.get(id=request.user.id)
+#           serializer=self.serializer_class(Userdata)
+#           return Response({"data":serializer.data,"message":"Success","status":1},status=status.HTTP_200_OK)
+          
+     
+     
 class NoteListcreate(APIView):
     serializer_class=NoteSerializer
     permission_classes=[IsAuthenticated]
@@ -110,8 +121,10 @@ class CartView(APIView):
     serializer_class_product=ProductCartSerializer
     permission_classes=[IsAuthenticated]
     def post(self,request):
-        serializer=self.serializer_class(data=request.data,many=True)
+        data=request.data
+        serializer = self.serializer_class(data=data, many=True, context={'request': request})
         if serializer.is_valid():
+            # serializer["user"]=request.user.id
             serializer.save()
             return Response({"data":serializer.data,"message":"Product added to cart successfully","status":1},status=status.HTTP_201_CREATED)
         return Response({"data":serializer.errors,"message":"Failed to add the product to cart","status":0},status=status.HTTP_400_BAD_REQUEST)
@@ -122,7 +135,7 @@ class CartView(APIView):
                 TotalProducts=[]
                 cart_items=Cart.objects.filter(user=user)
                 for item in cart_items:
-                     product_details={
+                     product_details={  
                           "product_id":item.cart_product.id,
                           "product_name":item.cart_product.name,
                           "product_price":item.cart_product.price,

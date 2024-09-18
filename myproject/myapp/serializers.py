@@ -31,13 +31,18 @@ class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     class Meta:
         model=Product
-        fields=["id","name","price","status","description","brand","category","created_at","image","rating","images"]
+        fields=["id","name","price","status","description","brand","category","created_at","image","rating","images","stock"]
   
 class CartSerializer(serializers.ModelSerializer):
     class Meta:
         model=Cart
-        fields=["id","cart_product","user","created_at","quantity","total_price"]
-  
+        fields=["id","cart_product","created_at","quantity","total_price"]
+
+
+    def create(self,validated_data):
+        validated_data["user"]=self.context["request"].user
+        print(validated_data,'check-------------------------')
+        return Cart.objects.create(**validated_data)
   
 class ProductCartSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
