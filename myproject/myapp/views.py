@@ -101,7 +101,7 @@ class ProductView(APIView):
         Type=request.GET.get("type")
         if Type=="all":
             data=Product.objects.all()
-            serializer=self.serializer_class(data,many=True)
+            serializer=self.serializer_class(data,many=True,context={"user_id":request.user.id})
             return Response({"data":serializer.data,"message":"Success","status":1},status=status.HTTP_201_CREATED)
         else:              
             ProId=request.GET.get("id")
@@ -109,38 +109,89 @@ class ProductView(APIView):
                 print(ProId,"------------")
                 try:
                     data = Product.objects.get(id=ProId)
-                    serializer=self.serializer_class(data)
+                    # wishlist=Wishlist.objects.get(product=data,user=request.user)
+                    # print(wishlist,"=============================")
+                    serializer=self.serializer_class(data,context={"user_id":request.user.id})
                     return Response({"data":serializer.data,"message":"Success","status":2},status=status.HTTP_200_OK)
                 except Product.DoesNotExist:
                         return Response({"message":"Id is invalid","status":0})
             else:
                   return Response({"message":"Id is not provided","status":0})
-
+    
+    
 class CartView(APIView):
     serializer_class=CartSerializer
     serializer_class_product=ProductCartSerializer
     permission_classes=[IsAuthenticated]
     def post(self,request):
         data=request.data
-        serializer = self.serializer_class(data=data, many=True, context={'request': request})
-        if serializer.is_valid():
-            # serializer["user"]=request.user.id
-            serializer.save()
-            return Response({"data":serializer.data,"message":"Product added to cart successfully","status":1},status=status.HTTP_201_CREATED)
-        return Response({"data":serializer.errors,"message":"Failed to add the product to cart","status":0},status=status.HTTP_400_BAD_REQUEST)
+        productId=request.data.get("cart_product")
+        try:
+         cartquantity = Cart.objects.get(user=request.user, cart_product=productId).quantity
+         print(cartquantity, 'checkcartquantity')
+        except Cart.DoesNotExist:
+        # Handle the case where the Cart object does not exist
+         cartquantity = 0
+         print('Cart does not exist for this product')
 
+      
+        quantity = data.get("quantity")
+        try:
+             product=Product.objects.get(id=productId)
+        except Product.DoesNotExist:
+            return Response({"message": "Product not found", "status": 0}, status=status.HTTP_404_NOT_FOUND)
+        prodStock=product.stock
+        print(prodStock,"00000000000000")
+        print(quantity,"00000000000000")
+        if prodStock < quantity:
+           return Response({"message": "Maximum quantity exceeded", "status": 0}, status=status.HTTP_400_BAD_REQUEST)
+        if cartquantity+quantity > prodStock:
+                        return Response({"message": "Not that much stock available", "status": 0}, status=status.HTTP_400_BAD_REQUEST)
+        cart_item=Cart.objects.filter(user=request.user,cart_product=product).first()
+        if cart_item:
+             cart_item.quantity+=quantity
+             cart_item.save()
+             product.save()
+             return Response({"data": CartSerializer(cart_item).data, "message": "Product quantity updated successfully", "status": 1}, status=status.HTTP_200_OK)
+        else:
+             data['user'] = request.user.id 
+             serializer = self.serializer_class(data=data, context={'request': request})
+             if serializer.is_valid():
+                serializer.save()
+                return Response({"data": serializer.data, "message": "Product added to cart successfully", "status": 1}, status=status.HTTP_201_CREATED)
+             return Response({"data": serializer.errors, "message": "Failed to add the product to cart", "status": 0}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        
+
+
+        # if(ProdStock>=data["quantity"]):
+        #     if(product.id.includes()):
+        #          #increase the quantity
+        #     serializer = self.serializer_class(data=data, context={'request': request})
+        #     if serializer.is_valid():
+        #         # serializer["user"]=request.user.id    
+        #         serializer.save()
+        #         return Response({"data":serializer.data,"message":"Product added to cart successfully","status":1},status=status.HTTP_201_CREATED)
+        #     return Response({"data":serializer.errors,"message":"Failed to add the product to cart","status":0},status=status.HTTP_400_BAD_REQUEST)
+        # return Response({"message":"Maximum quantity added","status":0},status=status.HTTP_400_BAD_REQUEST)
+        
     def get(self,request):
-        user=request.GET.get("user_id")
+        user=request.user
+        print(user,"************")
         try:    
                 TotalProducts=[]
                 cart_items=Cart.objects.filter(user=user)
                 for item in cart_items:
+                     product=Product.objects.get(id=item.cart_product.id)
+                     print(product.image,'-----------------------')
                      product_details={  
                           "product_id":item.cart_product.id,
                           "product_name":item.cart_product.name,
                           "product_price":item.cart_product.price,
                           "total_quantity":item.quantity,
-                          "total_price":item.total_price
+                          "total_price":item.total_price,
+                          "image":product.image
                      }
                      TotalProducts.append(product_details)
                 serializer=self.serializer_class_product(TotalProducts,many=True)
@@ -151,4 +202,66 @@ class CartView(APIView):
         except Exception as e:
                      return Response({"error":str(e),"message":"failed","status":0},status=status.HTTP_400_BAD_REQUEST)
 
+    def delete(self,request):
+         productId=request.GET.get("product")
+         if productId:
+              try:
+                   product=Cart.objects.get(cart_product=productId,user=request.user)
+                   product.delete()
+                   return Response({"message":"Product removed from cart successfully","status":1},status=status.HTTP_200_OK)
+              except Cart.DoesNotExist:
+                   return Response({"message":"Product not found","status":0},status=status.HTTP_400_BAD_REQUEST)
+         else:
+                   return Response({"message":"Product not found","status":0},status=status.HTTP_400_BAD_REQUEST)
+
+                   
     
+class Wishlistview(APIView):
+     serializer_class=WishlistSerializer
+     serializer_class_wishlist=wishlistProductSerializer
+     
+     def post(self,request):
+          data=request.data
+          wishlistdata=Wishlist.objects.filter(user=request.user.id,product_id=data["product"]).first()
+          if wishlistdata:
+                return Response({"message":"Item already exists","status":2},status=status.HTTP_400_BAD_REQUEST)
+          else:    
+            data["user"]=request.user.id
+            serializer=self.serializer_class(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"data":serializer.data,"message":"Product add to wishlist successfully","status":1},status=status.HTTP_201_CREATED)
+            return Response({"error":serializer.errors,"message":"Product add to wishlist failed","status":0},status=status.HTTP_400_BAD_REQUEST)
+    
+     def get(self,request):
+          user=request.user
+          try:
+               TotalProducts=[]
+               products=Wishlist.objects.filter(user=user)
+               for item in products:
+                    # product=Product.objects.filter(id=item.product.id)
+                    product_details={
+                         "product_id":item.product.id,
+                         "product_name":item.product.name,
+                         "product_price":item.product.price,
+                         "image":item.product.image
+                    }
+                    TotalProducts.append(product_details)
+               serializer=self.serializer_class_wishlist(TotalProducts,many=True)
+               return Response({"data":serializer.data,"message":"success","status":1},status=status.HTTP_200_OK)
+
+          except Exception as e:
+                     return Response({"error":str(e),"message":"failed","status":0},status=status.HTTP_400_BAD_REQUEST)
+               
+     def delete(self,request):
+            productId=request.GET.get("product")
+            if productId:
+                try:
+                    wihlist=Wishlist.objects.get(product=productId,user=request.user)
+                    wihlist.delete()
+                    return Response({"message":"Product removed from wishlist","status":1},status=status.HTTP_200_OK)
+                except Wishlist.DoesNotExist:
+                    return Response({"message":"Product not found","status":2},status=status.HTTP_404_NOT_FOUND)
+            else:
+             return Response({"message":"Product not found","status":3},status=status.HTTP_404_NOT_FOUND)
+

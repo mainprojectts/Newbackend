@@ -75,3 +75,11 @@ class Cart(models.Model):
 
     def __str__(self):
         return self.cart_product.name
+
+class Wishlist(models.Model):
+    product=models.ForeignKey(Product,on_delete=models.CASCADE)
+    user=models.ForeignKey(User,on_delete=models.CASCADE)
+    created_at=models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.product.name
