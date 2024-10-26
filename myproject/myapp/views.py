@@ -7,6 +7,10 @@ from .serializers import  *
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests 
+import requests
+import time
 
 # Create your views here.
 
@@ -23,6 +27,38 @@ class CreateUserview(APIView):
         else:
             return Response({"data":serializer.errors,"message":"Create user failed","status":0},status=status.HTTP_400_BAD_REQUEST)
 
+class googleLogin(APIView):
+     permission_classes=[AllowAny]
+
+     def post(self,request):
+          Idtoken=request.data.get("id_token")
+          print(Idtoken,"idtokennnnnnnnnn")
+          if Idtoken is None:
+               return Response({"error":"Token is none"})
+          try:
+            idinfo=id_token.verify_oauth2_token(Idtoken,google_requests.Request())
+            print(idinfo,"idinfoooooooo")
+            if idinfo['exp'] < time.time():
+             return Response({"error": "ID token has expired"}, status=status.HTTP_400_BAD_REQUEST)
+            name=idinfo["name"]
+            email=idinfo["email"]
+            try:
+                    user=User.objects.get(email=email)
+            except User.DoesNotExist:
+                    user = User(
+                        username=name,
+                        email=email
+                    )
+
+                    user.set_unusable_password()
+
+                    user.save()
+                
+            refresh=RefreshToken.for_user(user)
+            return Response({"refresh":str(refresh),"access":str(refresh.access_token)})
+
+          except ValueError as e:
+                    return Response({"error of google":e})  
 
 # class GetuserDetailview(APIView):
 #      serializer_class=UserSerializer
@@ -203,16 +239,16 @@ class CartView(APIView):
                      return Response({"error":str(e),"message":"failed","status":0},status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self,request):
-         productId=request.GET.get("product")
-         if productId:
-              try:
-                   product=Cart.objects.get(cart_product=productId,user=request.user)
-                   product.delete()
-                   return Response({"message":"Product removed from cart successfully","status":1},status=status.HTTP_200_OK)
-              except Cart.DoesNotExist:
-                   return Response({"message":"Product not found","status":0},status=status.HTTP_400_BAD_REQUEST)
-         else:
-                   return Response({"message":"Product not found","status":0},status=status.HTTP_400_BAD_REQUEST)
+        productId=request.GET.get("product")
+        if productId:
+             try:
+                  product=Cart.objects.get(cart_product=productId,user=request.user)
+                  product.delete()
+                  return Response({"message":"Product removed from cart successfully","status":1},status=status.HTTP_200_OK)
+             except Cart.DoesNotExist:
+                  return Response({"message":"Product not found","status":0},status=status.HTTP_400_BAD_REQUEST)
+        else:
+               return Response({"message":"Product not found","status":0},status=status.HTTP_400_BAD_REQUEST)
 
                    
     
