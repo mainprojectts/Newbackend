@@ -32,7 +32,8 @@ class googleLogin(APIView):
 
      def post(self,request):
           Idtoken=request.data.get("id_token")
-          print(Idtoken,"idtokennnnnnnnnn")
+          print(request.data,"idtokennnnnnnnnn")
+         
           if Idtoken is None:
                return Response({"error":"Token is none"})
           try:
@@ -40,25 +41,44 @@ class googleLogin(APIView):
             print(idinfo,"idinfoooooooo")
             if idinfo['exp'] < time.time():
              return Response({"error": "ID token has expired"}, status=status.HTTP_400_BAD_REQUEST)
-            name=idinfo["name"]
+            name=idinfo["name"] 
             email=idinfo["email"]
             try:
                     user=User.objects.get(email=email)
+                
+                   
             except User.DoesNotExist:
+                original_username = name
+                counter = 1
+                new_username = original_username
+
+                while User.objects.filter(username=new_username).exists():
+                # Add a number at the front and check again
+                    new_username = f"{original_username}{counter}"
+                    counter += 1
+             
+                 
+                try:
                     user = User(
-                        username=name,
+                         username=new_username,
                         email=email
                     )
 
                     user.set_unusable_password()
 
                     user.save()
+                 
+                except ValueError as e:
+                    return Response({"error of user":e})  
+                except Exception as e:
+                     return Response({"error": "An unexpected error occurred during user creation: " + str(e)})
                 
             refresh=RefreshToken.for_user(user)
             return Response({"refresh":str(refresh),"access":str(refresh.access_token)})
 
           except ValueError as e:
                     return Response({"error of google":e})  
+    
 
 # class GetuserDetailview(APIView):
 #      serializer_class=UserSerializer
