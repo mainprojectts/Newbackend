@@ -78,7 +78,56 @@ class googleLogin(APIView):
 
           except ValueError as e:
                     return Response({"error of google":e})  
-    
+
+class Githublogin(APIView):
+     permission_classes=[AllowAny]
+     def post(self,request):
+          access_token=request.data.get("access_token")
+          email=request.data.get("email")
+          url = "https://api.github.com/user"
+          headers = {"Authorization": f"Bearer {access_token}"}
+          response = requests.get(url, headers=headers)
+         
+          if response.status_code == 200:
+             user_data = response.json() 
+             username=user_data["login"]
+             print(user_data,"_____________")
+             try:
+                    user=User.objects.get(email=email)
+                
+                   
+             except User.DoesNotExist:
+                original_username = username
+                counter = 1
+                new_username = original_username
+
+                while User.objects.filter(username=new_username).exists():
+                # Add a number at the front and check again
+                    new_username = f"{original_username}{counter}"
+                    counter += 1
+             
+                 
+                try:
+                    user = User(
+                         username=new_username,
+                        email=email
+                    )
+
+                    user.set_unusable_password()
+
+                    user.save()
+                 
+                except ValueError as e:
+                    return Response({"error of user":e})  
+                except Exception as e:
+                     return Response({"error": "An unexpected error occurred during user creation: " + str(e)})
+                
+             refresh=RefreshToken.for_user(user)
+             return Response({"refresh":str(refresh),"access":str(refresh.access_token)})
+            
+            
+          else:
+             return Response({"error of google":"some error"}) 
 
 # class GetuserDetailview(APIView):
 #      serializer_class=UserSerializer
